@@ -1,0 +1,142 @@
+<!-- current video: connect to back end  -->
+<html>
+  <head>
+    <script src="https://unpkg.com/react@16/umd/react.development.js"
+    crossorigin></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"
+    crossorigin></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-router-dom/5.0.1/react-router-dom.js"></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/redux/4.0.5/redux.js'></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type='text/babel'>
+
+    const { createStore, combineReducers } = Redux
+    const { HashRouter, Route, Link } = ReactRouterDOM
+
+    const reducer = combineReducers({
+      foos: ( state = [], action) => {
+        if (action.type === 'ADD_FOO') {
+          state = [...state, action.foo]
+        } else if (action.type === 'SET_FOOS') {
+          state = action.foos
+        }
+        return state
+      },
+      bars: ( state = [], action) => {
+        if (action.type === 'ADD_BAR') {
+          state = [...state, action.bar] 
+        }
+        return state
+    }})
+
+    const fetchFoos = async() => store.dispatch( { type: 'SET_FOOS', foos: ( await axios.get('/api/foos')).data })
+
+    //without redux
+    const addRandomFoo = () => {
+      setTimeout(() => {
+        store.dispatch({ foo: { id: Math.random().toFixed(3), name: `FOO-${Math.random().toFixed(3)}`}, type: 'ADD_FOO'})
+      }, Math.random() * 2000)
+    }
+
+    //with redux
+    const addRandomFoo = async() => {
+        store.dispatch({ foo: (await axios.post('/api/foos')).data, type: 'ADD_FOO'})
+    }
+
+    const addRandomBar = () => {
+      setTimeout(() => {
+        store.dispatch({ bar: { id: Math.random().toFixed(3), name: `BAR-${Math.random().toFixed(3)}`}, type: 'ADD_BAR'})
+      }, Math.random() * 2000)
+    }
+
+
+
+    const store = createStore(reducer)
+
+    const connect = (Component) => {
+      class Connected extends React.Component {
+        constructor() {
+          super()
+          this.state = store.getState()
+        }
+        componentWillUnmount(){
+          this.unsubscribe()
+        }
+        componentDidMount() {
+          this.unsubscribe = store.subscribe( () => this.setState(store.getState))
+        }
+        render() {
+          return (
+            <Component { ...this.state } { ...this.props } />
+          )
+        }
+      }
+      return Connected
+    }
+
+    const Nav = connect(({ foos, bars, location }) => {
+        return (
+          <nav>
+            <Link to='/foos'>Foos ({ foos.length })</Link>
+            <Link to='/bars'>Bars ({ bars.length })</Link>
+          </nav>
+        )
+    })
+
+    const Foos = connect(({ foos }) => {
+      return (
+        <div>
+          <button onClick={ addRandomFoo }>Add</button>
+          <ul>
+            {foos.map( foo => <li key={foo.id}>{foo.name}</li>)}
+          </ul>
+        </div>
+      )
+    })
+
+    const Bars = connect(({ bars }) => {
+      return (
+        <div>
+          <button onClick={ addRandomBar }>Add</button>
+          <ul>
+            {bars.map( bar => <li key={bar.id}>{bar.name}</li>)}
+          </ul>
+        </div>
+      )
+    })
+
+    class App extends React.Component {
+      componentDidMount() {
+        addRandomFoo()
+        addRandomBar()
+        addRandomFoo()
+        addRandomBar()
+        addRandomFoo()
+        addRandomBar()
+      }
+
+      render() {
+        return (
+          <HashRouter>
+            <Route component={ Nav }/>
+            <Route path='/foos' component={ Foos }/>
+            <Route path='/bars' component={ Bars }/>
+          </HashRouter>
+        )
+      }
+    }
+
+    // const unsubscribe = store.subscribe( state => {
+    //    console.log(state)
+    // })
+    // store.dispatch({ foos: [1, 2, 3, 4]})
+
+    
+    const root = document.querySelector('#root')
+    ReactDOM.render(<App />, root)
+    </script>
+  </body>
+</html>
